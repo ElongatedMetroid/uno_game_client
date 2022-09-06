@@ -1,4 +1,4 @@
-use std::{net::TcpStream, io::stdin};
+use std::{net::TcpStream, io::stdin, process};
 use lib_uno_game::{Player, Game, Packet};
 
 fn main() {
@@ -17,9 +17,13 @@ fn handle_connection(mut stream: TcpStream) {
 
     // Send initial data, like name
     let mut packet = Packet::new(&None, &Some(player));
-    packet.write(&mut stream).unwrap();
+    packet.write(&mut stream).unwrap_or_else(|error| {
+        eprintln!("Write failed: {error}");
+        process::exit(1);
+    });
 
     // Recieve initial cards
+    let packet = Packet::read(&mut stream).unwrap();
 
     loop {
         // Recieve Game struct
