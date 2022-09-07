@@ -23,23 +23,56 @@ fn handle_connection(mut stream: TcpStream) {
         eprintln!("Write failed: {error}");
         process::exit(1);
     });
-
+println!("WRITE 1");
     let mut buf_reader = BufReader::new(&stream);
     buf.clear();
     buf_reader.read_line(&mut buf).unwrap();
     player.set_turn(buf.trim().parse().unwrap());
+println!("READ 1");
 
     loop {
-        
         // Recieve Game struct
         packet = Packet::read(&mut stream).unwrap();
 
         // Display card
         println!("Current Card {:?}", packet.game().as_ref().unwrap().current_card());
         // Display the cards the player has
-        println!("{:#?}", player);
         println!("Your Hand {:?}", packet.get_player(&player).as_ref().unwrap().cards());
 
-        // Send card
+        loop {
+            buf.clear();
+
+            print!("Which Card Would You Like To Use: ");
+            io::stdout().flush().unwrap();
+            io::stdin().read_line(&mut buf).unwrap();
+
+            let index = match buf.trim().parse::<usize>() {
+                Ok(index) => index,
+                Err(_) => {
+                    eprintln!("Please enter a number");
+                    continue;
+                }
+            };
+
+            let cards = packet.get_player(&player).as_ref().unwrap().cards();
+
+            if cards.len() - 1 < index {
+                eprintln!("Please enter a valid number");
+                continue;
+            }
+
+            packet.set_card(&cards[index].clone());
+            packet.write(&mut stream).unwrap();
+
+            // Read response
+            let (success, text) = packet.success();
+
+            if !success {
+                eprintln!("Invalid card: {:?}", text);
+                continue;
+            }
+            
+            break;
+        }
     }
 }
